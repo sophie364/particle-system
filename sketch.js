@@ -1,4 +1,4 @@
-let fps = 10;
+let fps = 60;
 
 let bg = [220,220,220];
 let canvasWidth = 2000;
@@ -6,15 +6,17 @@ let canvasHeight = 1100;
 
 let waterColour = [15,90,160];
 let initWaterHeight = 100;
+let currentWaterHeight = initWaterHeight;
 let waterWidth = 500;
-// Lower the water height by 1 pixel for every 'lowerWater' water particles
-// converted into steam particles
-let lowerWater;
-let surface;
 
 let maxNoOfSteamParticles = 1000;
 let steamParticleDiameter = 10;
 let emitter;
+
+// Lower the water height by 1 pixel for every 'lowerWater' water particles
+// converted into steam particles
+let lowerWater = maxNoOfSteamParticles/initWaterHeight;
+let surface;
 
 function setup() {
 	createCanvas(canvasWidth, canvasHeight);
@@ -25,11 +27,10 @@ function setup() {
 
 function init() {
 	clear();
-	lowerWater = maxNoOfSteamParticles/initWaterHeight;
-	drawBg();
+	currentWaterHeight = initWaterHeight;
+	background(bg);
+	surface = drawWater(initWaterHeight);
 	emitter = new Emitter(maxNoOfSteamParticles, steamParticleDiameter, generateEmitterLocation(surface));
-	emitter.emit();
-
 }
 
 // Draws rectangle representing water, returns list of coords that can be
@@ -37,8 +38,7 @@ function init() {
 function drawWater(waterHeight) {
 	topLeftX = canvasWidth/2-waterWidth/2;
 	topLeftY = canvasHeight-waterHeight;
-	stroke(waterColour);
-	strokeWeight(1);
+	noStroke();
 	fill(waterColour);
 	rect(topLeftX, topLeftY, waterWidth, waterHeight);
 
@@ -47,15 +47,21 @@ function drawWater(waterHeight) {
 	return [p1, p2];
 }
 
-function drawBg() {
+function updateBg() {
 	background(bg);
-	// Draw water rectangle and get water surface coordinates
-	surface = drawWater(initWaterHeight);
+	// Check if we need to move the water level down by a pixel
+	noEmitted = emitter.getNoOfSteamParticlesEmitted();
+	if (noEmitted>0 && noEmitted%lowerWater<1) {
+		currentWaterHeight--;
+	}
+	// Draw water rectangle and update water surface coordinates
+	surface = drawWater(currentWaterHeight);
 }
 
 function draw() {
-	drawBg();
+	updateBg();
 	emitter.setPos(generateEmitterLocation(surface));
+	emitter.emit();
 	emitter.update();
 	emitter.show();
 }
@@ -72,6 +78,7 @@ function generateEmitterLocation(surface) {
 	return createVector(x, p1.y - steamParticleDiameter/2);
 }
 
+// If spacebar pressed, reset
 function keyTyped() {
   if (key === ' ') {
 		init();

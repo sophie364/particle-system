@@ -9,8 +9,8 @@ class Emitter {
     this.particles = [];
   }
 
-  printParticleSize(){
-    console.log("s ", this.particles.length)
+  getNoOfSteamParticlesEmitted() {
+    return this.noOfSteamParticlesEmitted;
   }
 
   setPos(pos) {
@@ -18,11 +18,11 @@ class Emitter {
   }
 
   emit() {
+    // Emits a particle if there is still water left to turn into steam
     if (this.noOfSteamParticlesEmitted < this.maxNoOfSteamParticles) {
-  		let initVel = createVector(0,-10);
+  		let initVel = createVector(0,-2);
   		let initAcc = createVector(0,0);
   		let particle = new Particle(this.pos, initVel, initAcc, this.steamParticleDiameter);
-      particle.show();
   		this.particles.push(particle);
   		this.noOfSteamParticlesEmitted++;
   	}
