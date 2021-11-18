@@ -23,13 +23,13 @@ class Particle {
   }
 
   show() {
-    // stroke(0);
-    // strokeWeight(2);
-    // fill(255, 100);
-    // ellipse(this.pos.x, this.pos.y, this.pointDiameter);
-    stroke('gray');
-    strokeWeight(this.pointDiameter);
-    point(this.pos);
+    stroke(0);
+    strokeWeight(1);
+    fill(255, 100);
+    ellipse(this.pos.x, this.pos.y, this.pointDiameter);
+    // stroke('gray');
+    // strokeWeight(this.pointDiameter);
+    // point(this.pos);
 
   }
 }
