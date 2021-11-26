@@ -12,15 +12,21 @@ let initWaterHeight = defaultInitWaterHeight;
 let currentWaterHeight = initWaterHeight;
 let waterWidth = 500;
 
-let maxNoOfSteamParticles = 1000;
+let maxNoOfSteamParticles = 10000;
 let steamParticleDiameter = 10;
-let emitter;
+let emitterGroup;
 
 let sliderGap = 55;
 
 let sliders = new Map();
 
-let ttl = 5;
+let ttl = 3;
+
+let noOfEmitters = 10;
+
+let noOfBins = 10;
+let lowestTemp = 0;
+let highestTemp = 200;
 
 // Lower the water height by 1 pixel for every 'lowerWater' water particles
 // converted into steam particles
@@ -33,9 +39,9 @@ function setup() {
 	frameRate(fps);
 	init();
 
-	sliders.set("Time to live for new particles", makeSlider(5, 1, 20, 1, " second(s)"));
+	sliders.set("Time to live for new particles", makeSlider(ttl, 1, 20, 1, " second(s)"));
 	sliders.set("Wind (acceleration in x-direction)", makeSlider(0, -0.1, 0.1, 0.01, " pixels/s²"));
-	sliders.set("Temperature", makeSlider(50, 0, 200, 1, "°C"));
+	sliders.set("Temperature", makeSlider(50, lowestTemp, highestTemp, 1, "°C"));
 
 }
 
@@ -51,22 +57,34 @@ function updateMaxParticles() {
 	init();
 }
 
+function updateNoOfEmitters() {
+	noOfEmitters = noOfEmittersTextBox.value();
+	init();
+}
+
 function init() {
 	currentWaterHeight = initWaterHeight;
 	background(bg);
 	surface = drawWater(initWaterHeight);
 	potSides = drawPotSides(initWaterHeight);
-	emitter = new Emitter(maxNoOfSteamParticles, steamParticleDiameter, generateEmitterLocation(surface), ttl*fps, fps, 0, potSides);
-	// Every 1 second, clear the emitter's particle array of 'undefined' elements (deleted particles)
+	emitterGroup = new EmitterGroup(noOfEmitters, maxNoOfSteamParticles, steamParticleDiameter, surface, ttl*fps, fps, 0, potSides, noOfBins, lowestTemp, highestTemp);
+	emitterGroup.generateEmitters();
+	// Every 1 second, clear each emitter's particle array of 'undefined' elements (deleted particles)
 	setInterval(function () {
-    emitter.cleanParticleArr();
-	}, 1000);
+    emitterGroup.cleanParticleArr();
+	}, 5000);
 	drawSettingsTab();
 
+	noOfEmittersTextBox = createInput(str(noOfEmitters));
+	noOfEmittersTextBox.position(30,100);
+	noOfEmittersTextBox.size(50);
+	noOfEmittersBtn = createButton('Submit');
+	noOfEmittersBtn.position(noOfEmittersTextBox.x + noOfEmittersTextBox.width+10, noOfEmittersTextBox.y);
+	noOfEmittersBtn.mousePressed(updateNoOfEmitters);
+
 	maxParticlesTextBox = createInput(str(maxNoOfSteamParticles));
-	maxParticlesTextBox.position(30,110)
-	maxParticlesTextBox.size(50)
-	//make a button to submit changes in the textbox
+	maxParticlesTextBox.position(30,160);
+	maxParticlesTextBox.size(50);
 	maxParticlesBtn = createButton('Submit');
 	maxParticlesBtn.position(maxParticlesTextBox.x + maxParticlesTextBox.width+10, maxParticlesTextBox.y);
 	maxParticlesBtn.mousePressed(updateMaxParticles);
@@ -75,7 +93,7 @@ function init() {
 // Return list, where index 0 = slider, index 1 = unit
 function makeSlider(initValue, rangeLower, rangeUpper, step, unit) {
 	sliderToMake = createSlider(rangeLower, rangeUpper, initValue, step);
-	sliderToMake.position(30, 180+sliderGap*(sliders.size+1));
+	sliderToMake.position(30, 230+sliderGap*(sliders.size+1));
 	sliderToMake.style('width', str(settingsWidth-settingsWidth/6)+"px");
 	return [sliderToMake, unit];
 }
@@ -89,14 +107,28 @@ function drawSettingsTab() {
 	fill(230, 230, 230);
 	text('Settings', 30, 50);
 	textSize(16);
-	text("Max no. of steam particles: " + maxNoOfSteamParticles, 30, 100);
-	text("No. of steam particles already emitted: " + emitter.noOfSteamParticlesEmitted, 30, 165);
-	text("No. of steam particles currently alive: " + emitter.noOfParticlesAlive, 30, 185);
+	text("No. of steam particle emitters: " + noOfEmitters, 30, 90);
+	text("Max no. of steam particles: " + maxNoOfSteamParticles, 30, 150);
+	text("No. of steam particles already emitted: " + emitterGroup.noOfSteamParticlesEmitted, 30, 205);
+	text("No. of steam particles currently alive: " + emitterGroup.noOfParticlesAlive, 30, 225);
 	index = 1;
 	for (const [key, value] of sliders.entries()) {
-		text(key+": "+value[0].value()+value[1], 30, 175+sliderGap*index);
+		text(key+": "+value[0].value()+value[1], 30, 225+sliderGap*index);
 		index++;
 	}
+	text("Probability of a particle having energy\ncorresponding to a temperature within a range,\nand the corresponding velocity of emitted\nsteam particles in each bin (ranges < 100°C mean\nthe particle doesn't have enough energy to\nevaporate therefore velocity = 0 pixels/s): ", 30, 450);
+	probabilities = emitterGroup.particleTempProb;
+	var lowerLim = lowestTemp;
+	for (var i = 0; i < noOfBins; i++) {
+		var upperLim = lowestTemp+((i+1)*emitterGroup.sizeOfOneBin);
+		text("P ("+lowerLim+"°C - "+upperLim+"°C) = "+roundTo3DP(probabilities[i])
+		  + "\t-> " + roundTo3DP(emitterGroup.particleInitVelocities[i])+" pixels/s", 30, 585+25*i);
+		lowerLim = upperLim;
+	}
+}
+
+function roundTo3DP(val) {
+	return Math.round(val * 1000) / 1000;
 }
 
 // Draws rectangle representing water, returns list of coords that can be
@@ -133,7 +165,7 @@ function updateBg() {
 	background(bg);
 	drawSettingsTab();
 	// Check if we need to move the water level down by a pixel
-	noEmitted = emitter.noOfSteamParticlesEmitted;
+	noEmitted = emitterGroup.noOfSteamParticlesEmitted;
 	pixelsToLowerSurfaceBy = noEmitted/lowerWater;
 	currentWaterHeight = initWaterHeight-pixelsToLowerSurfaceBy;
 
@@ -144,25 +176,11 @@ function updateBg() {
 
 function draw() {
 	updateBg();
-	emitter.setPos(generateEmitterLocation(surface));
-	emitter.setLifetimeInFrames(sliders.get("Time to live for new particles")[0].value()*fps);
-	emitter.setWind(sliders.get("Wind (acceleration in x-direction)")[0].value()*fps);
-	emitter.setTemp(sliders.get("Temperature")[0].value())
-	emitter.emit();
-	emitter.update();
-	emitter.show();
-}
-
-// Return random coordinate along the water surface line to potentially
-// emit a particle from
-function generateEmitterLocation(surface) {
-	// Gerenate a random x value between the x values of the water surface
-	// (ensuring that emitted particles don't exceed the line ends on the x axis)
-	p1 = surface[0];
-	p2 = surface[1];
-
-	x = random(p1.x + steamParticleDiameter/2, p2.x - steamParticleDiameter/2);
-	return createVector(x, p1.y - steamParticleDiameter/2);
+	emitterGroup.setSurface(surface);
+	emitterGroup.setLifetimeInFrames(sliders.get("Time to live for new particles")[0].value()*fps);
+	emitterGroup.setWind(sliders.get("Wind (acceleration in x-direction)")[0].value()*fps);
+	emitterGroup.setTemp(sliders.get("Temperature")[0].value())
+	emitterGroup.update();
 }
 
 // If spacebar pressed, reset

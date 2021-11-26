@@ -1,12 +1,9 @@
-class Emitter {
+class EmitterGroup {
 
   noOfParticlesAlive = 0;
   noOfSteamParticlesEmitted = 0;
   pixelsPerM = 0.1;
-  noOfBins = 10;
-  lowestTemp = 0;
-  highestTemp = 200;
-  sizeOfOneBin = (this.highestTemp-this.lowestTemp)/this.noOfBins;
+
 
   // Each element is the midpoint temperature in the range that the bin represents, i.e. if binTemps[0] represents temp. range 0-10 deg C, binTemps[0] = 5
   binTemps = new Array(this.noOfBins);
@@ -17,23 +14,35 @@ class Emitter {
   // The corresponding velocity of a steam particle given that it has energy corresponding to the bin indicated by the array index
   particleInitVelocities = new Array(this.noOfBins);
 
-  constructor(maxNoOfSteamParticles, steamParticleDiameter, pos, lifetimeInFrames, fps, wind, potSides) {
+  emitters = new Array(this.noOfEmitters);
+
+  constructor(noOfEmitters, maxNoOfSteamParticles, steamParticleDiameter, surface, lifetimeInFrames, fps, wind, potSides, noOfBins, lowestTemp, highestTemp) {
+    this.noOfEmitters = noOfEmitters;
     this.maxNoOfSteamParticles = maxNoOfSteamParticles;
     this.steamParticleDiameter = steamParticleDiameter;
-    this.pos = pos;
+    this.surface = surface;
     this.lifetimeInFrames = lifetimeInFrames;
     this.fps = fps;
     this.wind = wind;
-    this.particles = [];
     this.potSides = potSides;
+    this.noOfBins = noOfBins;
+    this.lowestTemp = lowestTemp;
+    this.highestTemp = highestTemp;
+    this.sizeOfOneBin = (this.highestTemp-this.lowestTemp)/this.noOfBins;
+  }
+
+  generateEmitters() {
+    for (var i=0; i <this.noOfEmitters; i++) {
+      this.emitters[i] = new Emitter(this.steamParticleDiameter, this.fps, this.potSides)
+    }
   }
 
   setLifetimeInFrames(lifetimeInFrames) {
     this.lifetimeInFrames = lifetimeInFrames;
   }
 
-  setPos(pos) {
-    this.pos = pos;
+  setSurface(surface) {
+    this.surface = surface;
   }
 
   setWind(wind) {
@@ -65,23 +74,6 @@ class Emitter {
       }
 
       this.temp = temp;
-
-      // Bin 0: P(particle has energy corresponding to between 0-50 degrees C)
-      // this.particleTempProb[0] = 1-Math.exp((-1.5*25)/temp);
-      // // Bin 1: P(particle has energy corresponding to between 50-100 degrees C)
-      // this.particleTempProb[1] = 1-Math.exp((-1.5*75)/temp) - this.particleTempProb[0];
-      // // Bin 2: P(particle has energy corresponding to between 100-150 degrees C)
-      // this.particleTempProb[2] = 1-Math.exp((-1.5*125)/temp) - this.particleTempProb[1];
-      // // Bin 3: P(particle has energy corresponding to between 150-200 degrees C)
-      // this.particleTempProb[3] = 1-Math.exp((-1.5*175)/temp) - this.particleTempProb[2];
-
-      // Init v for first 2 bins = 0 because they don't have enough energy to evaporate
-      // this.particleInitVelocities[0] = 0;
-      // this.particleInitVelocities[1] = 0;
-      //
-      // // Calculate initial velocities for the bins over 100 degrees C
-      // this.particleInitVelocities[2] = this.getVFromT(125);
-      // this.particleInitVelocities[3] = this.getVFromT(175);
     }
   }
 
@@ -107,53 +99,32 @@ class Emitter {
     return this.particleInitVelocities[lastIndex];
   }
 
-  emit() {
-    // Emits a particle if there is still water left to turn into steam
-    if (this.noOfSteamParticlesEmitted < this.maxNoOfSteamParticles) {
-      let generatedVel = this.genInitVel();
+  // Return random coordinate along the water surface line to potentially
+  // emit a particle from
+  generateEmitterLocation(surface) {
+    // Gerenate a random x value between the x values of the water surface
+    // (ensuring that emitted particles don't exceed the line ends on the x axis)
+    var p1 = surface[0];
+    var p2 = surface[1];
 
-      // If the velocity generated > 0 i.e the particle has enough energy to evaporate,
-      // emit a particle with that velocity, otherwise do not emit a particle
-      if (generatedVel > 0) {
-        let initVel = createVector(0,-generatedVel);
-        let initAcc = createVector(0,0);
-        let particle = new Particle(this.pos, initVel, initAcc, this.lifetimeInFrames, this.steamParticleDiameter);
-        this.particles.push(particle);
-        this.noOfSteamParticlesEmitted++;
-      }
-  	}
+    var x = random(p1.x + this.steamParticleDiameter/2, p2.x - this.steamParticleDiameter/2);
+    return createVector(x, p1.y - this.steamParticleDiameter/2);
   }
 
   update() {
-    // Loop backwards through particles, update the location of the particle
-    // If the particle is off screen, delete it from the particle list
-    // Iterating backwards through the list so that deletions won't mess up
-    // looking at particles at indexes in the array yet to be processed
-    for (var i = this.particles.length - 1; i >= 0; i--) {
-      if (typeof this.particles[i] !== 'undefined') {
-        if (this.particles[i].isOffScreen() || this.particles[i].isLifetimeOver()) {
-            delete this.particles[i];
-        } else {
-          if (!this.particles[i].isInsidePot(this.potSides)) {
-            this.particles[i].applyForce(createVector((this.wind/this.fps),0));
-          }
-          this.particles[i].update();
-        }
-      }
-    }
-
-  }
-
-  show() {
     this.noOfParticlesAlive = 0;
-    for (var particle of this.particles) {
-      if (typeof particle !== 'undefined') {
-        particle.show();
-        this.noOfParticlesAlive++;
-      }
+    for (var i = 0; i < this.noOfEmitters; i++) {
+      this.noOfSteamParticlesEmitted += this.emitters[i].emit(
+        this.generateEmitterLocation(this.surface), this.genInitVel(),
+        this.noOfSteamParticlesEmitted, this.maxNoOfSteamParticles, this.lifetimeInFrames);
+      this.emitters[i].update(this.wind);
+      this.noOfParticlesAlive += this.emitters[i].show();
     }
   }
 
-  // Clear out 'undefined' elements in the particle array due to deletion
-  cleanParticleArr() { this.particles = this.particles.filter(function(p) { return typeof p !== 'undefined'; }); }
+  cleanParticleArr() {
+    for (var i = 0; i < this.noOfEmitters; i++) {
+      this.emitters[i].cleanParticleArr();
+    }
+  }
 }
