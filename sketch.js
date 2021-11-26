@@ -33,9 +33,10 @@ function setup() {
 	frameRate(fps);
 	init();
 
-	sliders.set("Temperature", makeSlider(50, 0, 200, 1, "°C"));
 	sliders.set("Time to live for new particles", makeSlider(5, 1, 20, 1, " second(s)"));
 	sliders.set("Wind (acceleration in x-direction)", makeSlider(0, -0.1, 0.1, 0.01, " pixels/s²"));
+	sliders.set("Temperature", makeSlider(50, 0, 200, 1, "°C"));
+
 }
 
 function updateMaxParticles() {
@@ -53,7 +54,6 @@ function updateMaxParticles() {
 function init() {
 	currentWaterHeight = initWaterHeight;
 	background(bg);
-	drawSettingsTab();
 	surface = drawWater(initWaterHeight);
 	potSides = drawPotSides(initWaterHeight);
 	emitter = new Emitter(maxNoOfSteamParticles, steamParticleDiameter, generateEmitterLocation(surface), ttl*fps, fps, 0, potSides);
@@ -61,6 +61,7 @@ function init() {
 	setInterval(function () {
     emitter.cleanParticleArr();
 	}, 1000);
+	drawSettingsTab();
 
 	maxParticlesTextBox = createInput(str(maxNoOfSteamParticles));
 	maxParticlesTextBox.position(30,110)
@@ -74,7 +75,7 @@ function init() {
 // Return list, where index 0 = slider, index 1 = unit
 function makeSlider(initValue, rangeLower, rangeUpper, step, unit) {
 	sliderToMake = createSlider(rangeLower, rangeUpper, initValue, step);
-	sliderToMake.position(30, 120+sliderGap*(sliders.size+1));
+	sliderToMake.position(30, 180+sliderGap*(sliders.size+1));
 	sliderToMake.style('width', str(settingsWidth-settingsWidth/6)+"px");
 	return [sliderToMake, unit];
 }
@@ -88,10 +89,12 @@ function drawSettingsTab() {
 	fill(230, 230, 230);
 	text('Settings', 30, 50);
 	textSize(16);
-	text("Max no. of steam particles", 30, 100);
+	text("Max no. of steam particles: " + maxNoOfSteamParticles, 30, 100);
+	text("No. of steam particles already emitted: " + emitter.noOfSteamParticlesEmitted, 30, 165);
+	text("No. of steam particles currently alive: " + emitter.noOfParticlesAlive, 30, 185);
 	index = 1;
 	for (const [key, value] of sliders.entries()) {
-		text(key+": "+value[0].value()+value[1], 30, 115+sliderGap*index);
+		text(key+": "+value[0].value()+value[1], 30, 175+sliderGap*index);
 		index++;
 	}
 }
@@ -130,7 +133,7 @@ function updateBg() {
 	background(bg);
 	drawSettingsTab();
 	// Check if we need to move the water level down by a pixel
-	noEmitted = emitter.getNoOfSteamParticlesEmitted();
+	noEmitted = emitter.noOfSteamParticlesEmitted;
 	pixelsToLowerSurfaceBy = noEmitted/lowerWater;
 	currentWaterHeight = initWaterHeight-pixelsToLowerSurfaceBy;
 
