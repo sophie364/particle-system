@@ -1,31 +1,13 @@
 class Particle {
 
-  constructor(initPos, initVel, initAcc, lifetimeInFrames, pointDiameter) {
+  constructor(initPos, initVel, initAcc, lifetimeInFrames, pointDiameter, renderType) {
     this.pos = initPos;
     this.vel = initVel;
     this.acc = initAcc;
     this.lifetimeInFrames = lifetimeInFrames;
     this.pointDiameter = pointDiameter;
+    this.renderType = renderType;
   }
-
-  // isTouchingPotSide(potSides) {
-  //   let leftPotSide = potSides[0];
-  //   let rightPotSide = potSides[1];
-  //   let leftEdgeOfParticle = this.pos.x - this.pointDiameter/2;
-  //   let rightEdgeOfParticle = this.pos.x + this.pointDiameter/2;
-  //
-  //   if (this.pos.y >= leftPotSide[1] && this.pos.y <= leftPotSide[3]
-  //       && leftEdgeOfParticle <= leftPotSide[0]) {
-  //     this.vel = createVector(0,this.vel.y);
-  //     return true;
-  //   }
-  //   if (this.pos.y >= rightPotSide[1] && this.pos.y <= rightPotSide[3]
-  //       && rightEdgeOfParticle == rightPotSide[0]) {
-  //     this.vel = createVector(0,this.vel.y);
-  //     return true;
-  //   }
-  //   return false;
-  // }
 
   isInsidePot(potSides) {
     let leftPotSide = potSides[0];
@@ -61,13 +43,19 @@ class Particle {
   }
 
   show() {
-    stroke(0);
-    strokeWeight(1);
-    fill(255, 100);
-    ellipse(this.pos.x, this.pos.y, this.pointDiameter);
-    // stroke('gray');
-    // strokeWeight(this.pointDiameter);
-    // point(this.pos);
-
+    if (this.renderType=="Point"){
+      stroke(220,220,220);
+      strokeWeight(this.pointDiameter);
+      point(this.pos);
+    } else if (this.renderType=="Quad"){
+      noStroke();
+      rectMode(CENTER);
+      fill(220,220,220);
+      square(this.pos.x, this.pos.y, this.pointDiameter);
+      rectMode(CORNER);
+    } else {
+      imageMode(CENTER);
+      image(imgTexture, this.pos.x, this.pos.y, this.pointDiameter, this.pointDiameter);
+    }
   }
 }

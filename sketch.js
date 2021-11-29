@@ -1,6 +1,6 @@
 let fps = 60;
 
-let bg = [220,220,220];
+let bg = [20,20,20];
 let canvasWidth = 2000;
 let canvasHeight = 1100;
 let settingsWidth = canvasWidth/5;
@@ -13,7 +13,7 @@ let currentWaterHeight = initWaterHeight;
 let waterWidth = 500;
 
 let maxNoOfSteamParticles = 10000;
-let steamParticleDiameter = 10;
+let steamParticleDiameter = 20;
 let emitterGroup;
 
 let sliderGap = 55;
@@ -28,10 +28,21 @@ let noOfBins = 10;
 let lowestTemp = 0;
 let highestTemp = 200;
 
+let renderType = "Point"; // 'Point', 'Quad', or 'Textured Quad'
+
+let renderSelectionBox;
+let targetParticleNo = 1000;
+
 // Lower the water height by 1 pixel for every 'lowerWater' water particles
 // converted into steam particles
 let lowerWater = maxNoOfSteamParticles/initWaterHeight;
 let surface;
+
+let imgTexture;
+
+function preload() {
+  imgTexture = loadImage('texture.png');
+}
 
 function setup() {
 	createCanvas(canvasWidth, canvasHeight);
@@ -42,7 +53,19 @@ function setup() {
 	sliders.set("Time to live for new particles", makeSlider(ttl, 1, 20, 1, " second(s)"));
 	sliders.set("Wind (acceleration in x-direction)", makeSlider(0, -0.1, 0.1, 0.01, " pixels/s²"));
 	sliders.set("Temperature", makeSlider(50, lowestTemp, highestTemp, 1, "°C"));
+	renderSelectionBox = createSelect();
+  renderSelectionBox.position(180, 836);
+  renderSelectionBox.option('Point');
+  renderSelectionBox.option('Quad');
+	renderSelectionBox.option('Textured Quad');
+  renderSelectionBox.selected(renderType);
+	renderSelectionBox.changed(renderSelectionEvent);
+}
 
+function renderSelectionEvent() {
+  renderType = renderSelectionBox.value();
+	steamParticleDiameter = diameterTextBox.value();
+	init();
 }
 
 function updateMaxParticles() {
@@ -63,11 +86,13 @@ function updateNoOfEmitters() {
 }
 
 function init() {
+	targetFR = "Not yet observed";
+	observed=false;
 	currentWaterHeight = initWaterHeight;
 	background(bg);
 	surface = drawWater(initWaterHeight);
 	potSides = drawPotSides(initWaterHeight);
-	emitterGroup = new EmitterGroup(noOfEmitters, maxNoOfSteamParticles, steamParticleDiameter, surface, ttl*fps, fps, 0, potSides, noOfBins, lowestTemp, highestTemp);
+	emitterGroup = new EmitterGroup(noOfEmitters, maxNoOfSteamParticles, steamParticleDiameter, surface, ttl*fps, fps, 0, potSides, noOfBins, lowestTemp, highestTemp, renderType);
 	emitterGroup.generateEmitters();
 	// Every 1 second, clear each emitter's particle array of 'undefined' elements (deleted particles)
 	setInterval(function () {
@@ -88,6 +113,25 @@ function init() {
 	maxParticlesBtn = createButton('Submit');
 	maxParticlesBtn.position(maxParticlesTextBox.x + maxParticlesTextBox.width+10, maxParticlesTextBox.y);
 	maxParticlesBtn.mousePressed(updateMaxParticles);
+
+	diameterTextBox = createInput(str(steamParticleDiameter));
+	diameterTextBox.position(160,865);
+	diameterTextBox.size(50);
+	diameterBtn = createButton('Submit');
+	diameterBtn.position(diameterTextBox.x + diameterTextBox.width+10, diameterTextBox.y);
+	diameterBtn.mousePressed(renderSelectionEvent);
+
+	frTextBox = createInput(str(targetParticleNo));
+	frTextBox.position(450,90);
+	frTextBox.size(50);
+	frBtn = createButton('Submit');
+	frBtn.position(frTextBox.x + frTextBox.width+10, frTextBox.y);
+	frBtn.mousePressed(frEvent);
+}
+
+function frEvent() {
+	targetParticleNo = frTextBox.value();
+	init();
 }
 
 // Return list, where index 0 = slider, index 1 = unit
@@ -125,6 +169,15 @@ function drawSettingsTab() {
 		  + "\t-> " + roundTo3DP(emitterGroup.particleInitVelocities[i])+" pixels/s", 30, 585+25*i);
 		lowerLim = upperLim;
 	}
+	text("Particle render type: ", 30, 850);
+	text("Particle diameter: ", 30, 880);
+	text("Current frame rate: "+ round(frameRate()), 450, 50);
+
+	if (observed==false && emitterGroup.noOfParticlesAlive>=targetParticleNo) {
+		targetFR=round(frameRate());
+		observed=true;
+	}
+	text("Observed frame rate when "+targetParticleNo+" particles alive at once: "+ targetFR, 450, 80);
 }
 
 function roundTo3DP(val) {

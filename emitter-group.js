@@ -2,8 +2,7 @@ class EmitterGroup {
 
   noOfParticlesAlive = 0;
   noOfSteamParticlesEmitted = 0;
-  pixelsPerM = 0.1;
-
+  pixelsPerM = 5;
 
   // Each element is the midpoint temperature in the range that the bin represents, i.e. if binTemps[0] represents temp. range 0-10 deg C, binTemps[0] = 5
   binTemps = new Array(this.noOfBins);
@@ -16,7 +15,7 @@ class EmitterGroup {
 
   emitters = new Array(this.noOfEmitters);
 
-  constructor(noOfEmitters, maxNoOfSteamParticles, steamParticleDiameter, surface, lifetimeInFrames, fps, wind, potSides, noOfBins, lowestTemp, highestTemp) {
+  constructor(noOfEmitters, maxNoOfSteamParticles, steamParticleDiameter, surface, lifetimeInFrames, fps, wind, potSides, noOfBins, lowestTemp, highestTemp, renderType) {
     this.noOfEmitters = noOfEmitters;
     this.maxNoOfSteamParticles = maxNoOfSteamParticles;
     this.steamParticleDiameter = steamParticleDiameter;
@@ -29,11 +28,24 @@ class EmitterGroup {
     this.lowestTemp = lowestTemp;
     this.highestTemp = highestTemp;
     this.sizeOfOneBin = (this.highestTemp-this.lowestTemp)/this.noOfBins;
+    this.renderType = renderType;
+
+    // Will store no. of randomly generated velocities that were allocated to each bin
+    this.randomGenerationsPerBin = new Array(this.noOfBins).fill(0);
+  }
+
+  getObservedBinProbability() {
+    let obs = new Array(this.randomGenerationsPerBin.length);
+    let sum = this.randomGenerationsPerBin.reduce((a, b) => a + b, 0);
+    for (var i=0;i<obs.length;i++){
+      obs[i] = this.randomGenerationsPerBin[i]/sum;
+    }
+    return obs;
   }
 
   generateEmitters() {
     for (var i=0; i <this.noOfEmitters; i++) {
-      this.emitters[i] = new Emitter(this.steamParticleDiameter, this.fps, this.potSides)
+      this.emitters[i] = new Emitter(this.steamParticleDiameter, this.fps, this.potSides, this.renderType)
     }
   }
 
@@ -78,7 +90,7 @@ class EmitterGroup {
   }
 
   getVFromT(tempInC) {
-    return this.pixelsPerM * Math.sqrt((3*1.38*(tempInC+273.15))/2.99);
+    return (this.pixelsPerM * Math.sqrt((3*1.38*(tempInC+273.15))/2.99))/this.fps;
   }
 
   genInitVel() {
@@ -92,10 +104,11 @@ class EmitterGroup {
     for (var i = 0; i < lastIndex; i++) {
         s += this.particleTempProb[i];
         if (num < s) {
+            this.randomGenerationsPerBin[i]++;
             return this.particleInitVelocities[i];
         }
     }
-
+    this.randomGenerationsPerBin[lastIndex]++;
     return this.particleInitVelocities[lastIndex];
   }
 
@@ -108,7 +121,8 @@ class EmitterGroup {
     var p2 = surface[1];
 
     var x = random(p1.x + this.steamParticleDiameter/2, p2.x - this.steamParticleDiameter/2);
-    return createVector(x, p1.y - this.steamParticleDiameter/2);
+    var y = p1.y - this.steamParticleDiameter/2;
+    return createVector(x, y);
   }
 
   update() {

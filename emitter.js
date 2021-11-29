@@ -1,11 +1,12 @@
 class Emitter {
 
-  constructor(steamParticleDiameter, fps, potSides) {
+  constructor(steamParticleDiameter, fps, potSides, renderType) {
     this.maxNoOfSteamParticles = maxNoOfSteamParticles;
     this.steamParticleDiameter = steamParticleDiameter;
     this.fps = fps;
     this.particles = [];
     this.potSides = potSides;
+    this.renderType = renderType;
   }
 
   // Returns 1 if particle is emitted, else 0
@@ -17,7 +18,7 @@ class Emitter {
       if (particleVel > 0) {
         let initVel = createVector(0,-particleVel);
         let initAcc = createVector(0,0);
-        let particle = new Particle(emissionPos, initVel, initAcc, lifetimeInFrames, this.steamParticleDiameter);
+        let particle = new Particle(emissionPos, initVel, initAcc, lifetimeInFrames, this.steamParticleDiameter, this.renderType);
         this.particles.push(particle);
         return 1;
       }
