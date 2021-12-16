@@ -13,7 +13,7 @@ let currentWaterHeight = initWaterHeight;
 let waterWidth = 500;
 
 let maxNoOfSteamParticles = 10000;
-let steamParticleDiameter = 20;
+let steamParticleDiameter = 10;
 let emitterGroup;
 
 let sliderGap = 55;
@@ -86,6 +86,7 @@ function updateNoOfEmitters() {
 }
 
 function init() {
+  clear();
 	targetFR = "Not yet observed";
 	observed=false;
 	currentWaterHeight = initWaterHeight;
@@ -94,7 +95,7 @@ function init() {
 	potSides = drawPotSides(initWaterHeight);
 	emitterGroup = new EmitterGroup(noOfEmitters, maxNoOfSteamParticles, steamParticleDiameter, surface, ttl*fps, fps, 0, potSides, noOfBins, lowestTemp, highestTemp, renderType);
 	emitterGroup.generateEmitters();
-	// Every 1 second, clear each emitter's particle array of 'undefined' elements (deleted particles)
+	// Every 5 second, clear each emitter's particle array of 'undefined' elements (deleted particles)
 	setInterval(function () {
     emitterGroup.cleanParticleArr();
 	}, 5000);
